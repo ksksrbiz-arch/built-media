@@ -1,0 +1,14 @@
+{
+  "name": "@built-media/functions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "stripe": "^17.5.0"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^2.6.0",
+    "@types/node": "^20.11.0"
+  }
+}

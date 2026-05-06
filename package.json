@@ -1,0 +1,26 @@
+{
+  "name": "built-media",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["web"],
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "npm run build --workspace=web",
+    "build:functions": "tsc -p netlify/functions/tsconfig.json",
+    "preview": "npm run preview --workspace=web",
+    "stripe:setup": "tsx scripts/setup-stripe.ts",
+    "db:push": "supabase db push",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p web && tsc --noEmit -p netlify/functions"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "netlify-cli": "^17.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "stripe": "^17.5.0"
+  }
+}
