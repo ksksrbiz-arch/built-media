@@ -1,4 +1,4 @@
-import type { Context } from '@netlify/functions';
+import type { Config, Context } from '@netlify/functions';
 import { authenticate, unauthorized } from './_shared/auth';
 import { getServiceClient } from './_shared/supabase';
 import { getStripe, PLANS, PlanTier } from './_shared/stripe';
@@ -60,3 +60,5 @@ export default async (req: Request, _context: Context): Promise<Response> => {
 
   return json({ url: session.url, id: session.id });
 };
+
+export const config: Config = { path: '/api/checkout' };

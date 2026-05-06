@@ -1,4 +1,4 @@
-import type { Context } from '@netlify/functions';
+import type { Config, Context } from '@netlify/functions';
 import { authenticate, unauthorized } from './_shared/auth';
 import { getServiceClient } from './_shared/supabase';
 import { json, serverError } from './_shared/http';
@@ -32,3 +32,5 @@ export default async (req: Request, _context: Context): Promise<Response> => {
     },
   });
 };
+
+export const config: Config = { path: '/api/me' };

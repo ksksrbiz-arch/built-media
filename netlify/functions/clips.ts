@@ -4,12 +4,47 @@ import { getServiceClient } from './_shared/supabase';
 import { getEngine } from './_shared/engines';
 import { json, badRequest, serverError } from './_shared/http';
 
+/**
+ * REST endpoint at /api/clips
+ *   GET  → list user's clips (paginated)
+ *   POST → create a new clip job (auth + quota + engine dispatch)
+ */
 export default async (req: Request, _context: Context): Promise<Response> => {
-  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
-
   const user = await authenticate(req.headers.get('authorization') ?? undefined);
   if (!user) return unauthorized();
 
+  if (req.method === 'GET')  return listClips(req, user.id);
+  if (req.method === 'POST') return createClip(req, user.id);
+  return json({ error: 'method not allowed' }, 405);
+};
+
+export const config: Config = { path: '/api/clips' };
+
+// ------------------------------- GET /api/clips -------------------------------
+
+async function listClips(req: Request, userId: string): Promise<Response> {
+  const url = new URL(req.url);
+  const limit  = Math.min(parseInt(url.searchParams.get('limit')  ?? '50', 10), 100);
+  const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
+
+  const supabase = getServiceClient();
+  const { data, error, count } = await supabase
+    .from('clips')
+    .select(
+      'id, source_url, source_title, engine, status, output, error_message, created_at, updated_at',
+      { count: 'exact' },
+    )
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) return serverError('failed to list clips', error);
+  return json({ clips: data ?? [], total: count ?? 0, limit, offset });
+}
+
+// ------------------------------- POST /api/clips ------------------------------
+
+async function createClip(req: Request, userId: string): Promise<Response> {
   let body: { source_url?: string; engine?: string };
   try {
     body = await req.json();
@@ -28,9 +63,9 @@ export default async (req: Request, _context: Context): Promise<Response> => {
     supabase
       .from('subscriptions')
       .select('plan, status, monthly_clip_limit, current_period_end')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .maybeSingle(),
-    supabase.rpc('clips_used_this_period', { p_user_id: user.id }),
+    supabase.rpc('clips_used_this_period', { p_user_id: userId }),
   ]);
 
   if (!sub) return serverError('subscription record missing');
@@ -52,12 +87,12 @@ export default async (req: Request, _context: Context): Promise<Response> => {
     );
   }
 
-  // -- Insert clip row first, so we have a stable jobId --
+  // -- Insert clip row --
   const engine = getEngine(body.engine);
   const { data: clip, error: insertErr } = await supabase
     .from('clips')
     .insert({
-      user_id: user.id,
+      user_id: userId,
       source_url: sourceUrl,
       engine: engine.name,
       status: 'queued',
@@ -73,11 +108,10 @@ export default async (req: Request, _context: Context): Promise<Response> => {
     const result = await engine.createJob({
       jobId: clip.id,
       sourceUrl,
-      userId: user.id,
+      userId,
       webhookUrl: `${appUrl}/api/webhooks/opus`,
     });
 
-    // Sync engines (mock) return clips inline; persist immediately.
     const update: Record<string, unknown> = {
       external_job_id: result.externalId,
       status: result.status,
@@ -86,9 +120,8 @@ export default async (req: Request, _context: Context): Promise<Response> => {
 
     await supabase.from('clips').update(update).eq('id', clip.id);
 
-    // Log usage event (counts toward billing period)
     await supabase.from('usage_events').insert({
-      user_id: user.id,
+      user_id: userId,
       clip_id: clip.id,
       event_type: 'clip_created',
     });
@@ -107,6 +140,4 @@ export default async (req: Request, _context: Context): Promise<Response> => {
       .eq('id', clip.id);
     return serverError('engine dispatch failed', message);
   }
-};
-
-export const config: Config = { path: '/api/clips' };
+}

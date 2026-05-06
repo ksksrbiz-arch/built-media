@@ -1,6 +1,6 @@
 [build]
   base = "."
-  command = "npm run build"
+  command = "npm install && npm run build"
   publish = "web/dist"
   functions = "netlify/functions"
 
@@ -14,45 +14,11 @@
   port = 8888
   framework = "#custom"
 
-# API routes
-[[redirects]]
-  from = "/api/clips"
-  to = "/.netlify/functions/clip-list"
-  status = 200
-  conditions = {Method = ["GET"]}
+# All /api/* routes are owned by Netlify Functions which self-register
+# their paths via `export const config: Config = { path: '...' }`.
+# Only the SPA fallback below remains so React Router handles client-side
+# routing for non-API paths.
 
-[[redirects]]
-  from = "/api/clips"
-  to = "/.netlify/functions/clip-create"
-  status = 200
-  conditions = {Method = ["POST"]}
-
-[[redirects]]
-  from = "/api/clips/:id"
-  to = "/.netlify/functions/clip-get?id=:id"
-  status = 200
-
-[[redirects]]
-  from = "/api/me"
-  to = "/.netlify/functions/me"
-  status = 200
-
-[[redirects]]
-  from = "/api/checkout"
-  to = "/.netlify/functions/checkout-session"
-  status = 200
-
-[[redirects]]
-  from = "/api/webhooks/stripe"
-  to = "/.netlify/functions/webhook-stripe"
-  status = 200
-
-[[redirects]]
-  from = "/api/webhooks/opus"
-  to = "/.netlify/functions/webhook-opus"
-  status = 200
-
-# SPA fallback (must be last)
 [[redirects]]
   from = "/*"
   to = "/index.html"

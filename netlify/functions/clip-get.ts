@@ -1,14 +1,18 @@
-import type { Context } from '@netlify/functions';
+import type { Config, Context } from '@netlify/functions';
 import { authenticate, unauthorized } from './_shared/auth';
 import { getServiceClient } from './_shared/supabase';
 import { json, badRequest, serverError } from './_shared/http';
 
-export default async (req: Request, _context: Context): Promise<Response> => {
+/**
+ * GET /api/clips/:id — single clip detail
+ */
+export default async (req: Request, context: Context): Promise<Response> => {
   const user = await authenticate(req.headers.get('authorization') ?? undefined);
   if (!user) return unauthorized();
 
-  const url = new URL(req.url);
-  const id = url.searchParams.get('id');
+  // Netlify v2 functions expose URL params via context.params for templated paths
+  const id = (context.params as { id?: string } | undefined)?.id
+    ?? new URL(req.url).pathname.split('/').pop();
   if (!id) return badRequest('id required');
 
   const supabase = getServiceClient();
@@ -24,3 +28,5 @@ export default async (req: Request, _context: Context): Promise<Response> => {
 
   return json({ clip: data });
 };
+
+export const config: Config = { path: '/api/clips/:id' };

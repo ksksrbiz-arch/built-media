@@ -1,4 +1,4 @@
-import type { Context } from '@netlify/functions';
+import type { Config, Context } from '@netlify/functions';
 import { getEngineByName } from './_shared/engines';
 import { getServiceClient } from './_shared/supabase';
 import { json } from './_shared/http';
@@ -38,3 +38,5 @@ export default async (req: Request, _context: Context): Promise<Response> => {
 
   return json({ ok: true });
 };
+
+export const config: Config = { path: '/api/webhooks/opus' };

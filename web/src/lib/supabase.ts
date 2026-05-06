@@ -1,7 +1,7 @@
 import { createClient, type Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string;
+const url  = (import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_DATABASE_URL) as string;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 if (!url || !anon) {

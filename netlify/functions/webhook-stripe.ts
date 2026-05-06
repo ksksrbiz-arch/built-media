@@ -1,4 +1,4 @@
-import type { Context } from '@netlify/functions';
+import type { Config, Context } from '@netlify/functions';
 import Stripe from 'stripe';
 import { getStripe, planFromPriceId, PLANS } from './_shared/stripe';
 import { getServiceClient } from './_shared/supabase';
@@ -97,3 +97,5 @@ async function getUserIdFromCustomer(stripe: Stripe, customerId: string): Promis
     return null;
   }
 }
+
+export const config: Config = { path: '/api/webhooks/stripe' };

@@ -1,10 +1,27 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+function getUrl(): string {
+  return (
+    process.env.VITE_SUPABASE_URL
+    ?? process.env.SUPABASE_DATABASE_URL
+    ?? process.env.VITE_SUPABASE_DATABASE_URL
+    ?? ''
+  );
+}
+
+function getAnonKey(): string {
+  return (
+    process.env.VITE_SUPABASE_ANON_KEY
+    ?? process.env.SUPABASE_ANON_KEY
+    ?? ''
+  );
+}
+
 /**
  * Service-role client. Bypasses RLS — use ONLY in trusted backend code.
  */
 export function getServiceClient(): SupabaseClient {
-  const url = process.env.VITE_SUPABASE_URL;
+  const url = getUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
     throw new Error('Supabase URL or service role key not configured');
@@ -19,8 +36,8 @@ export function getServiceClient(): SupabaseClient {
  * Use this when you want RLS to enforce row ownership automatically.
  */
 export function getUserClient(authHeader: string | undefined): SupabaseClient | null {
-  const url = process.env.VITE_SUPABASE_URL;
-  const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  const url = getUrl();
+  const anonKey = getAnonKey();
   if (!url || !anonKey || !authHeader) return null;
 
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
