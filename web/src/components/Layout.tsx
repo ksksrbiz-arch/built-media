@@ -1,19 +1,44 @@
+import { useEffect, useState } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useSession, supabase } from '../lib/supabase';
+import { api, type MeResponse } from '../lib/api';
 
 export default function Layout() {
   const { session } = useSession();
+  const [me, setMe] = useState<MeResponse | null>(null);
   const nav = useNavigate();
+
+  useEffect(() => {
+    if (!session) {
+      setMe(null);
+      return;
+    }
+
+    let active = true;
+    void api.me()
+      .then((data) => {
+        if (active) setMe(data);
+      })
+      .catch((err) => {
+        console.error('Failed to load account summary', err);
+        if (active) setMe(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [session]);
 
   async function signOut() {
     await supabase.auth.signOut();
+    setMe(null);
     nav('/');
   }
 
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-navy-800/80 bg-navy-950/70 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2 group">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gold-400 to-gold-600 grid place-items-center font-display font-bold text-navy-900">
               B
@@ -29,6 +54,18 @@ export default function Layout() {
                 <Link to="/dashboard" className="btn-ghost">Dashboard</Link>
                 <Link to="/pricing" className="btn-ghost">Plans</Link>
                 <Link to="/settings" className="btn-ghost">Settings</Link>
+                <Link
+                  to="/settings"
+                  className="hidden md:flex items-center gap-2 rounded-full border border-navy-700 bg-navy-900/70 px-3 py-2 text-xs text-navy-200 hover:border-gold-500/50 hover:text-white"
+                >
+                  <span className="h-2 w-2 rounded-full bg-teal-400" />
+                  <span>{me?.user.email ?? session.user.email ?? 'Account'}</span>
+                  {me && (
+                    <span className="text-navy-500">
+                      {me.usage.clips_remaining}/{me.usage.clips_limit} clips
+                    </span>
+                  )}
+                </Link>
                 <button onClick={signOut} className="btn-ghost">Sign out</button>
               </>
             ) : (

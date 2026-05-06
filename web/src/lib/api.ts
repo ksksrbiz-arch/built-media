@@ -26,7 +26,7 @@ export interface Clip {
 
 export interface MeResponse {
   user: { id: string; email?: string };
-  profile: { id: string; email: string; full_name?: string; stripe_customer_id?: string };
+  profile: { id: string; email: string; full_name?: string; stripe_customer_id?: string } | null;
   subscription: {
     plan: 'free' | 'starter' | 'pro' | 'studio';
     status: string;
