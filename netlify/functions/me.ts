@@ -1,28 +1,28 @@
 import type { Config, Context } from '@netlify/functions';
-import { authenticate, unauthorized } from './_shared/auth';
+import { authenticateVerbose, unauthorized } from './_shared/auth';
 import { getServiceClient } from './_shared/supabase';
 import { json, serverError } from './_shared/http';
 
 export default async (req: Request, _context: Context): Promise<Response> => {
-  const user = await authenticate(req.headers.get('authorization') ?? undefined);
-  if (!user) return unauthorized();
+  const auth = await authenticateVerbose(req.headers.get('authorization') ?? undefined);
+  if (!auth.user) return unauthorized(auth.debug);
 
   const supabase = getServiceClient();
   const [profileRes, subRes, usedRes] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
-    supabase.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
-    supabase.rpc('clips_used_this_period', { p_user_id: user.id }),
+    supabase.from('profiles').select('*').eq('id', auth.user.id).maybeSingle(),
+    supabase.from('subscriptions').select('*').eq('user_id', auth.user.id).maybeSingle(),
+    supabase.rpc('clips_used_this_period', { p_user_id: auth.user.id }),
   ]);
 
   if (profileRes.error) return serverError('profile fetch failed', profileRes.error);
-  if (subRes.error) return serverError('subscription fetch failed', subRes.error);
+  if (subRes.error)     return serverError('subscription fetch failed', subRes.error);
 
   const sub = subRes.data;
   const used = Number(usedRes.data ?? 0);
   const limit = sub?.monthly_clip_limit ?? 3;
 
   return json({
-    user: { id: user.id, email: user.email },
+    user: { id: auth.user.id, email: auth.user.email },
     profile: profileRes.data,
     subscription: sub,
     usage: {
