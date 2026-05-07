@@ -156,13 +156,25 @@ stripe listen --forward-to localhost:8888/api/webhooks/stripe
 
 ---
 
-## Supabase Auth email customization
+## Supabase Auth — production redirect setup (REQUIRED)
+
+After clicking the email-confirmation link, Supabase redirects the browser to whatever URL the client passed via `emailRedirectTo`. If that URL is **not in the project's allowlist**, Supabase silently falls back to the project's **Site URL** — which defaults to `http://localhost:3000` on a fresh project. Symptom: users finish signup, click "confirm", and land on a `localhost:3000/#access_token=…` page that obviously can't load.
+
+In the Supabase dashboard → **Authentication → URL Configuration**:
+- **Site URL**: `https://clips.1commerce.online`
+- **Additional Redirect URLs** (one per line):
+  - `https://clips.1commerce.online/**`
+  - `http://localhost:8888/**` (for local `netlify dev`)
+  - `http://localhost:5173/**` (for raw `vite dev`)
+
+The frontend already builds `emailRedirectTo` from `window.location.origin`, so once the production origin is in the allowlist, post-confirmation lands on `/dashboard` correctly.
+
+## Supabase Auth — email customization
 
 Default Supabase auth emails come from `noreply@mail.app.supabase.io` — fine for testing, not for production trust.
 
 In the Supabase dashboard → **Authentication → Email Templates**:
 - Update "Confirm signup", "Magic Link", "Reset Password" templates with Built Media branding.
-- Set the site URL to `https://clips.1commerce.online`.
 
 For a custom sender domain, configure SMTP under **Project Settings → Auth → SMTP Settings** (Resend, Postmark, or SendGrid all work). Use `noreply@1commerce.online`.
 
