@@ -58,6 +58,11 @@ async function createClip(req: Request, userId: string): Promise<Response> {
 
   const supabase = getServiceClient();
 
+  // -- Lazy period rollover for free tier --
+  // Paid plans are rolled forward by Stripe webhooks; free plans need this
+  // server-side check to reset their 30-day window.
+  await supabase.rpc('ensure_period_current', { p_user_id: userId });
+
   // -- Quota check --
   const [{ data: sub }, { data: usedRow }] = await Promise.all([
     supabase
