@@ -38,10 +38,26 @@ export async function authenticateVerbose(authHeader: string | undefined): Promi
     return { user: null, debug: debug ? { stage: 'client', detail } : undefined };
   }
 
+  // Capture env diagnostic fingerprint (safe — first 8 + last 4 chars only)
+  const fp = (v: string | undefined) =>
+    v ? `${v.slice(0, 8)}...${v.slice(-4)}(${v.length})` : 'MISSING';
+  const envFp = {
+    SUPABASE_DATABASE_URL: fp(process.env.SUPABASE_DATABASE_URL),
+    VITE_SUPABASE_URL:     fp(process.env.VITE_SUPABASE_URL),
+    SUPABASE_SERVICE_ROLE_KEY: fp(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    SUPABASE_ANON_KEY: fp(process.env.SUPABASE_ANON_KEY),
+  };
+
   try {
     const { data, error } = await supabase.auth.getUser(token);
     if (error) {
-      return { user: null, debug: debug ? { stage: 'getUser', detail: `${error.name}: ${error.message}` } : undefined };
+      return {
+        user: null,
+        debug: debug ? {
+          stage: 'getUser',
+          detail: `${error.name}: ${error.message} | env=${JSON.stringify(envFp)}`,
+        } : undefined,
+      };
     }
     if (!data.user) {
       return { user: null, debug: debug ? { stage: 'getUser', detail: 'no user in response' } : undefined };
