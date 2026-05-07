@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
   server: {
     port: 5173,
@@ -14,6 +14,8 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: process.env.NODE_ENV !== 'production',
+    // Source maps only when running `vite` (dev), never for `vite build` (prod).
+    // Production source maps leaked ~1.8MB and exposed full source.
+    sourcemap: command !== 'build',
   },
-});
+}));
