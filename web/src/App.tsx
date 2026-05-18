@@ -1,12 +1,19 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSession } from './lib/supabase';
 import Layout from './components/Layout';
+import AdminLayout from './components/AdminLayout';
 import Landing from './pages/Landing';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import ClipDetail from './pages/ClipDetail';
 import Pricing from './pages/Pricing';
 import Settings from './pages/Settings';
+import AdminOverview from './pages/admin/Overview';
+import AdminUsers from './pages/admin/Users';
+import AdminUserDetail from './pages/admin/UserDetail';
+import AdminClips from './pages/admin/Clips';
+import AdminClipDetail from './pages/admin/ClipAdminDetail';
+import AdminSystem from './pages/admin/System';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useSession();
@@ -51,6 +58,21 @@ export default function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="admin"
+          element={
+            <PrivateRoute>
+              <AdminLayout />
+            </PrivateRoute>
+          }
+        >
+          <Route index element={<AdminOverview />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="users/:id" element={<AdminUserDetail />} />
+          <Route path="clips" element={<AdminClips />} />
+          <Route path="clips/:id" element={<AdminClipDetail />} />
+          <Route path="system" element={<AdminSystem />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

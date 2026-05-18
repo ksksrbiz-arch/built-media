@@ -221,3 +221,30 @@ DNS: in Cloudflare for `1commerce.online`, add a `CNAME` record `clips → <your
 ## License
 
 Proprietary. Built Media is a 1Commerce LLC product.
+
+---
+
+## Admin UI — granting access
+
+The app ships with a mobile-first admin console at `/admin` that lets operators view system KPIs, search users, change plans, retry/delete clip jobs, inspect engine + webhook health, and audit admin actions.
+
+Access is gated by `profiles.is_admin = true`. To promote a user from the Supabase SQL editor:
+
+```sql
+update public.profiles set is_admin = true where email = 'you@example.com';
+```
+
+Apply the migration first if you upgraded from an earlier deploy:
+
+```bash
+# Paste supabase/migrations/20260518_admin.sql into the Supabase SQL editor,
+# or run: supabase db push
+```
+
+Once `is_admin` is true:
+1. Sign in normally.
+2. An **Admin** link appears in the header.
+3. Tap it to open the console. On mobile, primary sections (Overview / Users / Clips / System) live in a sticky bottom tab bar for thumb access.
+
+Every mutating admin action (plan change, quota reset, disable, clip retry/delete, admin grant/revoke) is appended to `public.admin_actions` for audit.
+
