@@ -54,6 +54,11 @@ export default function Layout() {
                 <Link to="/dashboard" className="btn-ghost">Dashboard</Link>
                 <Link to="/pricing" className="btn-ghost">Plans</Link>
                 <Link to="/settings" className="btn-ghost">Settings</Link>
+                {me?.profile?.is_admin && (
+                  <Link to="/admin" className="btn-ghost text-gold-300 hover:text-gold-200">
+                    Admin
+                  </Link>
+                )}
                 <Link
                   to="/settings"
                   className="hidden md:flex items-center gap-2 rounded-full border border-navy-700 bg-navy-900/70 px-3 py-2 text-xs text-navy-200 hover:border-gold-500/50 hover:text-white"

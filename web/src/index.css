@@ -10,6 +10,10 @@
     background: radial-gradient(ellipse at top, theme('colors.navy.800') 0%, theme('colors.navy.950') 60%);
     min-height: 100vh;
   }
+  @keyframes slideUp {
+    from { transform: translateY(16px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
 }
 
 @layer components {
