@@ -1,8 +1,11 @@
+import { timingSafeEqual } from 'node:crypto';
 import { getServiceClient } from './supabase';
 
 export interface AuthedUser {
   id: string;
   email?: string;
+  /** How the caller authenticated. 'service' = trusted first-party backend. */
+  via?: 'user' | 'service';
 }
 
 export interface AuthResult {
@@ -75,6 +78,49 @@ export async function authenticateVerbose(authHeader: string | undefined): Promi
 export async function authenticate(authHeader: string | undefined): Promise<AuthedUser | null> {
   const r = await authenticateVerbose(authHeader);
   return r.user;
+}
+
+/** Constant-time string compare that tolerates differing lengths. */
+function safeKeyEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
+/**
+ * Service-to-service auth for trusted first-party backends (e.g. UnifyOne).
+ *
+ * A caller presenting the shared key in the `x-built-media-key` header acts on
+ * behalf of the configured service user (`BUILT_MEDIA_SERVICE_USER_ID`, which
+ * must be a real Supabase auth.users id so clip/usage FKs are satisfied).
+ * Quota enforcement is skipped for service callers — the upstream platform is
+ * expected to meter usage on its own side.
+ *
+ * Returns null when the service key is not configured or does not match, so
+ * callers can fall back to Supabase JWT auth.
+ */
+export function authenticateService(req: Request): AuthedUser | null {
+  const configured = (process.env.BUILT_MEDIA_API_KEY || '').trim();
+  if (!configured) return null;
+
+  const provided = (req.headers.get('x-built-media-key') || '').trim();
+  if (!provided || !safeKeyEqual(provided, configured)) return null;
+
+  const serviceUserId = (process.env.BUILT_MEDIA_SERVICE_USER_ID || '').trim();
+  if (!serviceUserId) return null;
+
+  return { id: serviceUserId, via: 'service' };
+}
+
+/**
+ * Resolve the caller from either a service key (preferred for first-party
+ * backends) or a Supabase user JWT. Returns null when neither succeeds.
+ */
+export async function authenticateRequest(req: Request): Promise<AuthedUser | null> {
+  const service = authenticateService(req);
+  if (service) return service;
+  return authenticate(req.headers.get('authorization') ?? undefined);
 }
 
 export function unauthorized(debugInfo?: AuthResult['debug']): Response {

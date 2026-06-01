@@ -1,5 +1,5 @@
 import type { Config, Context } from '@netlify/functions';
-import { authenticate, unauthorized } from './_shared/auth';
+import { authenticateRequest, unauthorized } from './_shared/auth';
 import { getServiceClient } from './_shared/supabase';
 import { getEngine } from './_shared/engines';
 import { json, badRequest, serverError } from './_shared/http';
@@ -10,11 +10,11 @@ import { json, badRequest, serverError } from './_shared/http';
  *   POST → create a new clip job (auth + quota + engine dispatch)
  */
 export default async (req: Request, _context: Context): Promise<Response> => {
-  const user = await authenticate(req.headers.get('authorization') ?? undefined);
+  const user = await authenticateRequest(req);
   if (!user) return unauthorized();
 
   if (req.method === 'GET')  return listClips(req, user.id);
-  if (req.method === 'POST') return createClip(req, user.id);
+  if (req.method === 'POST') return createClip(req, user.id, user.via === 'service');
   return json({ error: 'method not allowed' }, 405);
 };
 
@@ -44,7 +44,11 @@ async function listClips(req: Request, userId: string): Promise<Response> {
 
 // ------------------------------- POST /api/clips ------------------------------
 
-async function createClip(req: Request, userId: string): Promise<Response> {
+async function createClip(
+  req: Request,
+  userId: string,
+  isService = false,
+): Promise<Response> {
   let body: { source_url?: string; engine?: string };
   try {
     body = await req.json();
@@ -58,38 +62,43 @@ async function createClip(req: Request, userId: string): Promise<Response> {
 
   const supabase = getServiceClient();
 
-  // -- Lazy period rollover for free tier --
-  // Paid plans are rolled forward by Stripe webhooks; free plans need this
-  // server-side check to reset their 30-day window.
-  await supabase.rpc('ensure_period_current', { p_user_id: userId });
+  // Service callers (trusted first-party backends) meter usage upstream, so we
+  // skip built-media's own subscription/quota gate for them. Interactive user
+  // sessions still go through the full plan + quota enforcement below.
+  if (!isService) {
+    // -- Lazy period rollover for free tier --
+    // Paid plans are rolled forward by Stripe webhooks; free plans need this
+    // server-side check to reset their 30-day window.
+    await supabase.rpc('ensure_period_current', { p_user_id: userId });
 
-  // -- Quota check --
-  const [{ data: sub }, { data: usedRow }] = await Promise.all([
-    supabase
-      .from('subscriptions')
-      .select('plan, status, monthly_clip_limit, current_period_end')
-      .eq('user_id', userId)
-      .maybeSingle(),
-    supabase.rpc('clips_used_this_period', { p_user_id: userId }),
-  ]);
+    // -- Quota check --
+    const [{ data: sub }, { data: usedRow }] = await Promise.all([
+      supabase
+        .from('subscriptions')
+        .select('plan, status, monthly_clip_limit, current_period_end')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      supabase.rpc('clips_used_this_period', { p_user_id: userId }),
+    ]);
 
-  if (!sub) return serverError('subscription record missing');
-  if (sub.status !== 'active' && sub.status !== 'trialing') {
-    return json({ error: 'subscription_inactive', plan: sub.plan }, 402);
-  }
+    if (!sub) return serverError('subscription record missing');
+    if (sub.status !== 'active' && sub.status !== 'trialing') {
+      return json({ error: 'subscription_inactive', plan: sub.plan }, 402);
+    }
 
-  const used = Number(usedRow ?? 0);
-  if (used >= sub.monthly_clip_limit) {
-    return json(
-      {
-        error: 'quota_exceeded',
-        used,
-        limit: sub.monthly_clip_limit,
-        plan: sub.plan,
-        message: `You've used all ${sub.monthly_clip_limit} clips on the ${sub.plan} plan. Upgrade to keep clipping.`,
-      },
-      402,
-    );
+    const used = Number(usedRow ?? 0);
+    if (used >= sub.monthly_clip_limit) {
+      return json(
+        {
+          error: 'quota_exceeded',
+          used,
+          limit: sub.monthly_clip_limit,
+          plan: sub.plan,
+          message: `You've used all ${sub.monthly_clip_limit} clips on the ${sub.plan} plan. Upgrade to keep clipping.`,
+        },
+        402,
+      );
+    }
   }
 
   // -- Insert clip row --
