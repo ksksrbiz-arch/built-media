@@ -1,5 +1,5 @@
 import type { Config, Context } from '@netlify/functions';
-import { authenticate, unauthorized } from './_shared/auth';
+import { authenticateRequest, unauthorized } from './_shared/auth';
 import { getServiceClient } from './_shared/supabase';
 import { json, badRequest, serverError } from './_shared/http';
 
@@ -7,7 +7,7 @@ import { json, badRequest, serverError } from './_shared/http';
  * GET /api/clips/:id — single clip detail
  */
 export default async (req: Request, context: Context): Promise<Response> => {
-  const user = await authenticate(req.headers.get('authorization') ?? undefined);
+  const user = await authenticateRequest(req);
   if (!user) return unauthorized();
 
   // Netlify v2 functions expose URL params via context.params for templated paths
